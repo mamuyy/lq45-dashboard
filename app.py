@@ -3,17 +3,18 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.title("Analisis Saham LQ45 - Ten Bagger Radar")
+st.set_page_config(page_title="Dashboard Saham LQ45", layout="wide")
+st.title("📈 Analisis Saham LQ45 - Ten Bagger Radar")
 
-# Upload file Excel
-uploaded_file = st.file_uploader("Upload file Excel hasil scraping", type=["xlsx"])
+uploaded_file = st.file_uploader("📂 Upload file Excel hasil scraping", type=["xlsx"])
+
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
 
-    st.subheader("Data Fundamental Saham")
-    st.dataframe(df)
+    st.subheader("📊 Data Fundamental Saham")
+    st.dataframe(df, use_container_width=True)
 
-    # Hitung skor sederhana
+    # Hitung skor gabungan
     df["Skor"] = (
         df["ROE (%)"].fillna(0)/5 +
         df["Revenue Growth (%)"].fillna(0)/10 +
@@ -23,11 +24,26 @@ if uploaded_file:
 
     df_sorted = df.sort_values(by="Skor", ascending=False)
 
-    st.subheader("Ranking Saham Potensial Ten Bagger")
-    st.dataframe(df_sorted[["Kode Saham", "Nama Emiten", "Skor"]])
+    # Filter Dinamis
+    st.sidebar.header("🔎 Filter Saham")
+    per_max = st.sidebar.slider("PER maksimum", 0, 50, 25)
+    roe_min = st.sidebar.slider("ROE minimum (%)", 0, 40, 10)
+    growth_min = st.sidebar.slider("Revenue Growth minimum (%)", 0, 100, 20)
 
-    # Radar Chart untuk 1 saham
-    st.subheader("Radar Chart per Saham")
+    filtered = df_sorted[
+        (df_sorted["PER"].fillna(99) <= per_max) &
+        (df_sorted["ROE (%)"].fillna(0) >= roe_min) &
+        (df_sorted["Revenue Growth (%)"].fillna(0) >= growth_min)
+    ]
+
+    st.subheader("🏅 Top 5 Saham Potensial (Filtered)")
+    st.dataframe(filtered.head(5)[["Kode Saham", "Nama Emiten", "Skor"]], use_container_width=True)
+
+    # Tombol download
+    st.download_button("📥 Download Ranking ke CSV", filtered.to_csv(index=False), "ranking_saham.csv", "text/csv")
+
+    # Radar chart interaktif
+    st.subheader("📍 Radar Chart per Saham")
     selected = st.selectbox("Pilih saham", df["Kode Saham"])
     saham = df[df["Kode Saham"] == selected].iloc[0]
     radar_data = pd.DataFrame({
